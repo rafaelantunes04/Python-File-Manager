@@ -7,8 +7,8 @@ from PIL import Image, ImageTk
 
 #Vars
 root = tk.Tk()
-file_path = 'C:\\Users\\Rafael\\Desktop\\'
-
+home_dir = path.expanduser('~')
+desktop_path = os.path.join(home_dir, 'Desktop')
     #Images
 arrow = ImageTk.PhotoImage(Image.open('images/arrow_white_theme.png'))
 arrow_on = ImageTk.PhotoImage(Image.open('images/arrow_on_white_theme.png'))
@@ -37,42 +37,42 @@ treeview.configure(yscrollcommand=scrollbar1.set)
 
 node = treeview.insert('', 'end', text='This PC', open=True)
 
-for i in os.listdir(path.expanduser("~")):
+for i in os.listdir(home_dir):
     match i:
         case "Desktop":
             node2 = treeview.insert(node, 'end', text=i, open=False)
-            for entry in os.listdir(path.expanduser("~") + "/" + i):
-                if path.isdir(path.join(path.expanduser("~"), i, entry)):
+            for entry in os.listdir(home_dir + "/" + i):
+                if path.isdir(path.join(home_dir, i, entry)):
                     treeview.insert(node2, 'end', text=entry, open=False)
         case "Documents":
             node2 = treeview.insert(node, 'end', text=i, open=False)
-            for entry in os.listdir(path.expanduser("~") + "/" + i):
-                if path.isdir(path.join(path.expanduser("~"), i, entry)):
+            for entry in os.listdir(home_dir + "/" + i):
+                if path.isdir(path.join(home_dir, i, entry)):
                     treeview.insert(node2, 'end', text=entry, open=False)
         case "Pictures":
             node2 = treeview.insert(node, 'end', text=i, open=False)
-            for entry in os.listdir(path.expanduser("~") + "/" + i):
-                if path.isdir(path.join(path.expanduser("~"), i, entry)):
+            for entry in os.listdir(home_dir + "/" + i):
+                if path.isdir(path.join(home_dir, i, entry)):
                     treeview.insert(node2, 'end', text=entry, open=False)
         case "Music":
             node2 = treeview.insert(node, 'end', text=i, open=False)
-            for entry in os.listdir(path.expanduser("~") + "/" + i):
-                if path.isdir(path.join(path.expanduser("~"), i, entry)):
+            for entry in os.listdir(home_dir + "/" + i):
+                if path.isdir(path.join(home_dir, i, entry)):
                     treeview.insert(node2, 'end', text=entry, open=False)
         case "3D Objects":
             node2 = treeview.insert(node, 'end', text=i, open=False)
-            for entry in os.listdir(path.expanduser("~") + "/" + i):
-                if path.isdir(path.join(path.expanduser("~"), i, entry)):
+            for entry in os.listdir(home_dir + "/" + i):
+                if path.isdir(path.join(home_dir, i, entry)):
                     treeview.insert(node2, 'end', text=entry, open=False)
         case "Downloads":
             node2 = treeview.insert(node, 'end', text=i, open=False)
-            for entry in os.listdir(path.expanduser("~") + "/" + i):
-                if path.isdir(path.join(path.expanduser("~"), i, entry)):
+            for entry in os.listdir(home_dir + "/" + i):
+                if path.isdir(path.join(home_dir, i, entry)):
                     treeview.insert(node2, 'end', text=entry, open=False)
         case "Videos":
             node2 = treeview.insert(node, 'end', text=i, open=False)
-            for entry in os.listdir(path.expanduser("~") + "/" + i):
-                if path.isdir(path.join(path.expanduser("~"), i, entry)):
+            for entry in os.listdir(home_dir + "/" + i):
+                if path.isdir(path.join(home_dir, i, entry)):
                     treeview.insert(node2, 'end', text=entry, open=False)
 
 for i in range(65, 91):
@@ -103,9 +103,9 @@ tree.heading('2', text='Date of Modification', anchor='w')
 tree.heading('3', text='Type', anchor='w')
 tree.heading('4', text='Size', anchor='w')
 
-for entry in os.scandir(file_path):
-    time = datetime.datetime.fromtimestamp(path.getmtime(file_path + entry.name)).strftime('%d/%m/%Y %H:%M')
-    if path.isdir(file_path + entry.name):
+for entry in os.scandir(desktop_path):
+    time = datetime.datetime.fromtimestamp(path.getmtime(os.path.join(desktop_path, entry.name))).strftime('%d/%m/%Y %H:%M')
+    if path.isdir(os.path.join(desktop_path, entry.name)):
         type = 'File Folder'
         tree.insert('','end',values=(entry.name, time, type, str(path.getsize(entry)) + ' KB'))
     else:
