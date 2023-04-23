@@ -27,7 +27,7 @@ paned.grid(row=1, column=0, columnspan=5, sticky='nsew')
 
 frame1 = tk.Frame(paned)
 treeview = ttk.Treeview(frame1)
-treeview.heading('#0', text='', anchor='w')
+treeview.heading('#0', text='Quick Acess', anchor='w')
 treeview.pack(side='left', fill='both',expand=True)
 
 scrollbar1 = ttk.Scrollbar(frame1, orient='vertical', command=treeview.yview)
@@ -96,7 +96,7 @@ tree['columns'] = ('1', '2', '3', '4')
 tree['show'] = 'headings'
 tree.column('1', anchor='w', stretch=0, minwidth=50)
 tree.column('2', anchor='w', stretch=0, minwidth=50)
-tree.column('3', anchor='w', stretch=0, minwidth=50)
+tree.column('3', anchor='w', stretch=0, minwidth=50, width=120)
 tree.column('4', anchor='e', stretch=0, minwidth=50)
 tree.heading('1', text='Name', anchor='w')
 tree.heading('2', text='Date of Modification', anchor='w')
@@ -105,12 +105,21 @@ tree.heading('4', text='Size', anchor='w')
 
 for entry in os.scandir(desktop_path):
     time = datetime.datetime.fromtimestamp(path.getmtime(os.path.join(desktop_path, entry.name))).strftime('%d/%m/%Y %H:%M')
+    size = path.getsize(entry)
+
+    units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
+    unit_index = 0
+    while size >= 1024 and unit_index < len(units) - 1:
+        size /= 1024.0
+        unit_index += 1
+    size = str(round(size)) + units[unit_index]
+    
     if path.isdir(os.path.join(desktop_path, entry.name)):
         type = 'File Folder'
-        tree.insert('','end',values=(entry.name, time, type, str(path.getsize(entry)) + ' KB'))
+        tree.insert('','end',values=(entry.name, time, type, size))
     else:
         name, type = entry.name.rsplit('.', 1)
-        tree.insert('','end',values=(entry.name, time, '.' + type + ' File', str(path.getsize(entry)) + ' KB'))
+        tree.insert('','end',values=(entry.name, time, '.' + type + ' File', size))
 
 paned.add(frame1)
 paned.add(frame2)
