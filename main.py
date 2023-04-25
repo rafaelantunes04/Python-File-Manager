@@ -5,9 +5,19 @@ import tkinter.ttk as ttk
 import datetime
 from PIL import Image, ImageTk
 
+def handle_enter(event):
+    global current_path
+    if path.exists(path_text_widget.get()):
+        current_path = path_text_widget.get()
+        load_folders(current_path)
+    else:
+        path_text_widget.delete(0, 'end')    
+        path_text_widget.insert(0, current_path)
+
 root = tk.Tk()
 home_dir = path.expanduser('~')
 desktop_path = os.path.join(home_dir, 'Desktop')
+current_path = desktop_path
 
 #Images
 arrow = ImageTk.PhotoImage(Image.open('images/arrow_white_theme.png'))
@@ -55,6 +65,7 @@ path_text = tk.Frame(top_panel)
 
         #Path Text Widget
 path_text_widget = tk.Entry(path_text, width=100)
+path_text_widget.bind("<Return>", handle_enter)
 path_text_widget.pack(side='left', fill='both', expand=True, padx=5)
 
     #Search Text
@@ -71,6 +82,34 @@ top_panel.paneconfigure(path_text, minsize=200)
 top_panel.paneconfigure(search_text, minsize=200)
 
 
+
+
+
+# Load Folders Function
+def load_folders(cur_path):
+    global current_path
+    for item in folder_view_widget.get_children():
+        folder_view_widget.delete(item)
+        
+    for entry in os.scandir(cur_path):
+        time = datetime.datetime.fromtimestamp(path.getmtime(os.path.join(cur_path, entry.name))).strftime('%d/%m/%Y %H:%M')
+        size = path.getsize(entry)
+
+        units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
+        unit_index = 0
+        while size >= 1024 and unit_index < len(units) - 1:
+            size /= 1024.0
+            unit_index += 1
+        size = str(round(size)) + units[unit_index]
+
+        if path.isdir(os.path.join(cur_path, entry.name)):
+            type = 'File Folder'
+            folder_view_widget.insert('','end',values=(entry.name, time, type, size))
+        else:
+            name, type = entry.name.rsplit('.', 1)
+            folder_view_widget.insert('','end',values=(entry.name, time, '.' + type + ' File', size))
+    path_text_widget.delete(0, 'end')    
+    path_text_widget.insert(0, current_path)
 
 
 
@@ -143,23 +182,7 @@ folder_view_widget.heading('3', text='Type', anchor='w')
 folder_view_widget.heading('4', text='Size', anchor='w')
                 
                 #folders
-for entry in os.scandir(desktop_path):
-    time = datetime.datetime.fromtimestamp(path.getmtime(os.path.join(desktop_path, entry.name))).strftime('%d/%m/%Y %H:%M')
-    size = path.getsize(entry)
-
-    units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
-    unit_index = 0
-    while size >= 1024 and unit_index < len(units) - 1:
-        size /= 1024.0
-        unit_index += 1
-    size = str(round(size)) + units[unit_index]
-    
-    if path.isdir(os.path.join(desktop_path, entry.name)):
-        type = 'File Folder'
-        folder_view_widget.insert('','end',values=(entry.name, time, type, size))
-    else:
-        name, type = entry.name.rsplit('.', 1)
-        folder_view_widget.insert('','end',values=(entry.name, time, '.' + type + ' File', size))
+load_folders(current_path)
 
     #Bottom Panel Settings Setup
 bottom_panel.add(quick_acess, width=200)
