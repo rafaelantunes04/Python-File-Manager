@@ -3,21 +3,13 @@ import os.path as path
 import tkinter as tk
 import tkinter.ttk as ttk
 import datetime
+import subprocess
 from PIL import Image, ImageTk
-
-def handle_enter(event):
-    global current_path
-    if path.exists(path_text_widget.get()):
-        current_path = path_text_widget.get()
-        load_folders(current_path)
-    else:
-        path_text_widget.delete(0, 'end')    
-        path_text_widget.insert(0, current_path)
 
 root = tk.Tk()
 home_dir = path.expanduser('~')
-desktop_path = os.path.join(home_dir, 'Desktop')
-current_path = desktop_path
+current_path = path.join(home_dir, 'Desktop')
+
 
 #Images
 arrow = ImageTk.PhotoImage(Image.open('images/arrow_white_theme.png'))
@@ -37,6 +29,100 @@ root.columnconfigure(2, weight=1)
 root.columnconfigure(3, weight=1)
 root.columnconfigure(4, weight=1)
 root.rowconfigure(1, weight=1)
+
+#Functions
+
+def size_format(size):
+    units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
+    unit_index = 0
+    while size >= 1024 and unit_index < len(units) - 1:
+        size /= 1024.0
+        unit_index += 1
+    return str(round(size)) + units[unit_index]
+
+def load_folders(cur_path):
+    global current_path
+    if not cur_path.endswith("\\"):
+        cur_path += "\\"
+
+    current_path = cur_path.rstrip()
+
+    for item in folder_view_widget.get_children():
+        folder_view_widget.delete(item)
+        
+    for entry in os.scandir(current_path):
+        time = datetime.datetime.fromtimestamp(path.getmtime(path.join(current_path, entry.name))).strftime('%d/%m/%Y %H:%M')
+        size = size_format(entry.stat().st_size)
+
+        if path.isdir(path.join(current_path, entry.name)):
+            type = 'File Folder'
+            folder_view_widget.insert('','end',values=(entry.name, time, type, size))
+        else:
+            name, type = entry.name.rsplit('.', 1)
+            folder_view_widget.insert('','end',values=(entry.name, time, '.' + type + ' File', size))
+    path_text_widget.delete(0, 'end')    
+    path_text_widget.insert(0, current_path)
+
+def on_path_changed(event):
+    global current_path
+    if path.exists(path_text_widget.get()):
+        current_path = path_text_widget.get()
+        load_folders(current_path)
+    else:
+        path_text_widget.delete(0, 'end')    
+        path_text_widget.insert(0, current_path)
+
+def on_folder_doubleclick(event):
+    selection = event.widget.selection()
+    if selection:
+        item = event.widget.item(selection)
+        name = item["values"][0]
+        if path.isdir(path.join(current_path, name)):
+            load_folders(path.join(current_path, name))
+        else:
+            subprocess.Popen([path.join(current_path, name)], shell=True)
+
+def on_folderview_click(event):
+    item = folder_view_widget.identify('item', event.x, event.y)
+    if not item:
+        folder_view_widget.selection_remove(folder_view_widget.selection())
+
+def on_quickaccess_click(event):
+    item = quick_access_widget.identify('item', event.x, event.y)
+    if not item:
+        quick_access_widget.selection_remove(quick_access_widget.selection())
+
+def search(search_term):
+    results = []
+    for item in folder_view_widget.get_children():
+        item = folder_view_widget.item(item)
+        item = item["values"][0]
+        if search_term.lower() in item.lower():
+            results.append(item)
+    return results
+
+def on_search(event):
+    global current_path
+    results = search(search_text_widget.get()) 
+
+    for item in folder_view_widget.get_children():
+        folder_view_widget.delete(item)
+
+    if search_text_widget.get() == '':
+        load_folders(current_path)
+    else:
+        for each in results:
+            for entry in os.scandir(current_path):
+                if entry.name.lower() == each.lower():
+                    time = datetime.datetime.fromtimestamp(path.getmtime(path.join(current_path, entry.name))).strftime('%d/%m/%Y %H:%M')
+                    size = size_format(entry.stat().st_size)
+
+                    if path.isdir(path.join(current_path, entry.name)):
+                        type = 'File Folder'
+                        folder_view_widget.insert('','end',values=(entry.name, time, type, size))
+                    else:
+                        name, type = entry.name.rsplit('.', 1)
+                        folder_view_widget.insert('','end',values=(entry.name, time, '.' + type + ' File', size))
 
 #Top setup
 top_panel = tk.PanedWindow(root)
@@ -65,7 +151,7 @@ path_text = tk.Frame(top_panel)
 
         #Path Text Widget
 path_text_widget = tk.Entry(path_text, width=100)
-path_text_widget.bind("<Return>", handle_enter)
+path_text_widget.bind("<Return>", on_path_changed)
 path_text_widget.pack(side='left', fill='both', expand=True, padx=5)
 
     #Search Text
@@ -73,6 +159,7 @@ search_text = tk.Frame(top_panel)
 
         #Search Text Widget
 search_text_widget = tk.Entry(search_text)
+search_text_widget.bind("<Return>", on_search)
 search_text_widget.pack(side='right', fill='both',expand=True, padx=5)
 
         #Top Panel Settings
@@ -85,73 +172,45 @@ top_panel.paneconfigure(search_text, minsize=200)
 
 
 
-# Load Folders Function
-def load_folders(cur_path):
-    global current_path
-    for item in folder_view_widget.get_children():
-        folder_view_widget.delete(item)
-        
-    for entry in os.scandir(cur_path):
-        time = datetime.datetime.fromtimestamp(path.getmtime(os.path.join(cur_path, entry.name))).strftime('%d/%m/%Y %H:%M')
-        size = path.getsize(entry)
-
-        units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
-        unit_index = 0
-        while size >= 1024 and unit_index < len(units) - 1:
-            size /= 1024.0
-            unit_index += 1
-        size = str(round(size)) + units[unit_index]
-
-        if path.isdir(os.path.join(cur_path, entry.name)):
-            type = 'File Folder'
-            folder_view_widget.insert('','end',values=(entry.name, time, type, size))
-        else:
-            name, type = entry.name.rsplit('.', 1)
-            folder_view_widget.insert('','end',values=(entry.name, time, '.' + type + ' File', size))
-    path_text_widget.delete(0, 'end')    
-    path_text_widget.insert(0, current_path)
-
-
-
-
 #Bottom setup
 bottom_panel = tk.PanedWindow(root)
 bottom_panel.grid(row=1, column=0, columnspan=5, sticky='nsew')
 
     #Left panel
-quick_acess = tk.Frame(bottom_panel)
+quick_access = tk.Frame(bottom_panel)
 
-        #quick acess widget
-quick_acess_widget = ttk.Treeview(quick_acess)
-quick_acess_widget.heading('#0', text='Quick Acess', anchor='c')
-quick_acess_widget.pack(side='left', fill='both',expand=True)
+        #quick access widget
+quick_access_widget = ttk.Treeview(quick_access)
+quick_access_widget.heading('#0', text='Quick access', anchor='c')
+quick_access_widget.bind('<Button-1>', on_quickaccess_click)
+quick_access_widget.pack(side='left', fill='both',expand=True)
 
 
-        #quick acess scrollbar
-quick_acess_scrollbar = ttk.Scrollbar(quick_acess_widget, orient='vertical', command=quick_acess_widget.yview)
-quick_acess_scrollbar.pack(side='right', fill='y')
-quick_acess_widget.configure(yscrollcommand=quick_acess_scrollbar.set)
+        #quick access scrollbar
+quick_access_scrollbar = ttk.Scrollbar(quick_access_widget, orient='vertical', command=quick_access_widget.yview)
+quick_access_scrollbar.pack(side='right', fill='y')
+quick_access_widget.configure(yscrollcommand=quick_access_scrollbar.set)
 
-            #quick acess folder insertion
-this_pc = quick_acess_widget.insert('', 'end', text='This PC', open=True)
+            #quick access folder insertion
+this_pc = quick_access_widget.insert('', 'end', text='This PC', open=True)
 directories = ['Desktop', 'Documents', 'Pictures', 'Music', '3D Objects', 'Downloads', 'Videos']
 
                 #Default system folder insertion
 for dir in directories:
     if path.exists(path.join(home_dir, dir)):
-        subfolder = quick_acess_widget.insert(this_pc, 'end', text=dir, open=False)
+        subfolder = quick_access_widget.insert(this_pc, 'end', text=dir, open=False)
         for entry in os.listdir(path.join(home_dir, dir)):
             if path.isdir(path.join(home_dir, dir, entry)):
-                quick_acess_widget.insert(subfolder, 'end', text=entry, open=False)
+                quick_access_widget.insert(subfolder, 'end', text=entry, open=False)
 
                 #Disk insertion
 for i in range(65, 91):
     drive_name = chr(i) + ':'
-    if os.path.exists(drive_name):
-        subfolder = quick_acess_widget.insert(this_pc, 'end', text=f"Disk ({drive_name})", open=False)
-        for entry in os.scandir(drive_name):
-            if entry.is_dir() and not entry.stat().st_file_attributes & 2:
-                quick_acess_widget.insert(subfolder, 'end', text=entry.name, open=False)
+    if path.exists(drive_name):
+        subfolder = quick_access_widget.insert(this_pc, 'end', text=f"Disk ({drive_name})", open=False)
+        for entry in os.listdir(path.join(drive_name, '\\')):
+            if path.isdir(path.join(path.join(drive_name, '\\'), entry)):
+                quick_access_widget.insert(subfolder, 'end', text=entry, open=False)
 
 
 
@@ -159,7 +218,9 @@ for i in range(65, 91):
 folder_view = tk.Frame(bottom_panel, relief="flat")
 
         #folder view widget
-folder_view_widget = ttk.Treeview(folder_view)
+folder_view_widget = ttk.Treeview(folder_view, selectmode="browse")
+folder_view_widget.bind("<Double-Button-1>", on_folder_doubleclick)
+folder_view_widget.bind('<Button-1>', on_folderview_click)
 folder_view_widget.pack(side='left', fill='both',expand=True)
 
         #folder view scrollbar
@@ -185,9 +246,9 @@ folder_view_widget.heading('4', text='Size', anchor='w')
 load_folders(current_path)
 
     #Bottom Panel Settings Setup
-bottom_panel.add(quick_acess, width=200)
+bottom_panel.add(quick_access, width=200)
 bottom_panel.add(folder_view)
-bottom_panel.paneconfigure(quick_acess, minsize=50)
+bottom_panel.paneconfigure(quick_access, minsize=50)
 bottom_panel.paneconfigure(folder_view, minsize=50)
 
 root.mainloop()
