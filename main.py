@@ -12,13 +12,12 @@ current_path = path.join(home_dir, 'Desktop')
 
 
 #Images
-arrow = ImageTk.PhotoImage(Image.open('images/arrow_white_theme.png'))
-arrow_on = ImageTk.PhotoImage(Image.open('images/arrow_on_white_theme.png'))
-fliparrow = ImageTk.PhotoImage(Image.open('images/arrow_white_theme.png').rotate(180))
-fliparrow_on = ImageTk.PhotoImage(Image.open('images/arrow_on_white_theme.png').rotate(180))
-uparrow = ImageTk.PhotoImage(Image.open('images/arrow_white_theme.png').rotate(-90))
-darktheme = ImageTk.PhotoImage(Image.open('images/dark_theme_icon.png'))
-whitetheme = ImageTk.PhotoImage(Image.open('images/dark_theme_icon.png'))
+arrow = ImageTk.PhotoImage(Image.open('images/arrow.png'))
+arrow_on = ImageTk.PhotoImage(Image.open('images/arrow_on.png'))
+fliparrow = ImageTk.PhotoImage(Image.open('images/arrow.png').rotate(180))
+fliparrow_on = ImageTk.PhotoImage(Image.open('images/arrow_on.png').rotate(180))
+uparrow = ImageTk.PhotoImage(Image.open('images/arrow.png').rotate(-90))
+reload = ImageTk.PhotoImage(Image.open('images/reload.png'))
 
 #Window Settings
 root.title('File Explorer')
@@ -32,6 +31,9 @@ root.rowconfigure(1, weight=1)
 
 #Functions
 
+def show_menu(event):
+    menu.post(event.x_root, event.y_root)
+
 def size_format(size):
     units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
     unit_index = 0
@@ -42,10 +44,11 @@ def size_format(size):
 
 def load_folders(cur_path):
     global current_path
+    cur_path = cur_path.rstrip()
     if not cur_path.endswith("\\"):
         cur_path += "\\"
 
-    current_path = cur_path.rstrip()
+    current_path = cur_path
 
     for item in folder_view_widget.get_children():
         folder_view_widget.delete(item)
@@ -88,11 +91,27 @@ def on_folderview_click(event):
         folder_view_widget.selection_remove(folder_view_widget.selection())
 
 def on_quickaccess_click(event):
-    item = quick_access_widget.identify('item', event.x, event.y)
-    if not item:
+    item_id = event.widget.identify_row(event.y)
+    name = event.widget.item(event.widget.identify_row(event.y))['text']
+    parent_folder = event.widget.item(event.widget.parent(item_id))['text']
+    if not item_id:
         quick_access_widget.selection_remove(quick_access_widget.selection())
+    else:
+        if name in directories or parent_folder in directories:
+            if path.exists(path.join(home_dir, name)):
+                load_folders(path.join(home_dir, name))
+            else:
+                load_folders(path.join(home_dir, parent_folder, name))
+        else:
+            try:
+                if path.exists(parent_folder[parent_folder.index('(')+1:parent_folder.index(')')] + "\\" + name):
+                    load_folders(parent_folder[parent_folder.index('(')+1:parent_folder.index(')')] + "\\" + name)
+            except:
+                load_folders(name[name.index('(')+1:name.index(')')])
 
 def search(search_term):
+    global current_path
+    load_folders(current_path)
     results = []
     for item in folder_view_widget.get_children():
         item = folder_view_widget.item(item)
@@ -124,6 +143,14 @@ def on_search(event):
                         name, type = entry.name.rsplit('.', 1)
                         folder_view_widget.insert('','end',values=(entry.name, time, '.' + type + ' File', size))
 
+#Menu
+menu = tk.Menu(root, tearoff=0)
+menu.add_command(label="Cut")
+menu.add_command(label="Copy")
+menu.add_command(label="Paste")
+
+root.bind("<Button-3>", show_menu)
+
 #Top setup
 top_panel = tk.PanedWindow(root)
 top_panel.grid(row=0, column=1, sticky='nsew', pady=10, columnspan=4)
@@ -135,7 +162,7 @@ frontarrow = tk.Button(root, image=fliparrow)
 frontarrow.grid(row=0, column=0, padx=(25,0), sticky='nsw', pady=10)
 toparrow = tk.Button(root, image=uparrow)
 toparrow.grid(row=0, column=0, padx=(50,0), sticky='nsw', pady=10)
-themebutton = tk.Button(root, image=darktheme)
+themebutton = tk.Button(root, image=reload)
 themebutton.grid(row=0, column=0, padx=(75,5), sticky='nsw', pady=10)
 
         #Left Widgets Settings
