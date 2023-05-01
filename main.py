@@ -32,7 +32,10 @@ root.rowconfigure(1, weight=1)
 #Functions
 
 def show_menu(event):
-    menu.post(event.x_root, event.y_root)
+    if event.widget.selection():
+        menusel.post(event.x_root, event.y_root)
+    else:
+        menudesel.post(event.x_root, event.y_root)
 
 def size_format(size):
     units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
@@ -97,7 +100,9 @@ def on_quickaccess_click(event):
     if not item_id:
         quick_access_widget.selection_remove(quick_access_widget.selection())
     else:
-        if name in directories or parent_folder in directories:
+        if name == "This PC":
+            load_folders(home_dir)
+        elif name in directories or parent_folder in directories:
             if path.exists(path.join(home_dir, name)):
                 load_folders(path.join(home_dir, name))
             else:
@@ -142,14 +147,6 @@ def on_search(event):
                     else:
                         name, type = entry.name.rsplit('.', 1)
                         folder_view_widget.insert('','end',values=(entry.name, time, '.' + type + ' File', size))
-
-#Menu
-menu = tk.Menu(root, tearoff=0)
-menu.add_command(label="Cut")
-menu.add_command(label="Copy")
-menu.add_command(label="Paste")
-
-root.bind("<Button-3>", show_menu)
 
 #Top setup
 top_panel = tk.PanedWindow(root)
@@ -248,6 +245,7 @@ folder_view = tk.Frame(bottom_panel, relief="flat")
 folder_view_widget = ttk.Treeview(folder_view, selectmode="browse")
 folder_view_widget.bind("<Double-Button-1>", on_folder_doubleclick)
 folder_view_widget.bind('<Button-1>', on_folderview_click)
+folder_view_widget.bind("<Button-3>", show_menu)
 folder_view_widget.pack(side='left', fill='both',expand=True)
 
         #folder view scrollbar
@@ -277,5 +275,24 @@ bottom_panel.add(quick_access, width=200)
 bottom_panel.add(folder_view)
 bottom_panel.paneconfigure(quick_access, minsize=50)
 bottom_panel.paneconfigure(folder_view, minsize=50)
+
+#Menu selected
+menusel = tk.Menu(folder_view_widget, tearoff=0)
+menusel.add_command(label="Open")
+menusel.add_separator()
+menusel.add_command(label="Cut")
+menusel.add_command(label="Copy")
+menusel.add_separator()
+menusel.add_command(label="Rename")
+menusel.add_command(label="Delete")
+
+#Menu deselected
+menudesel = tk.Menu(folder_view_widget, tearoff=0)
+createnewmenu = tk.Menu(menudesel, tearoff=0)
+menudesel.add_command(label="Reload")
+menudesel.add_cascade(label="Create New", menu=createnewmenu)
+createnewmenu.add_command(label="Folder")
+createnewmenu.add_command(label="Text Document")
+menudesel.add_command(label="Paste")
 
 root.mainloop()
