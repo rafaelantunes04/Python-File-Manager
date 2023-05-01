@@ -286,13 +286,16 @@ menusel.add_separator()
 menusel.add_command(label="Rename")
 menusel.add_command(label="Delete")
 
-#Menu deselected
+#Menu deselected/createnew
 menudesel = tk.Menu(folder_view_widget, tearoff=0)
+
 createnewmenu = tk.Menu(menudesel, tearoff=0)
+
 menudesel.add_command(label="Reload")
 menudesel.add_cascade(label="Create New", menu=createnewmenu)
+menudesel.add_command(label="Paste")
+
 createnewmenu.add_command(label="Folder")
 createnewmenu.add_command(label="Text Document")
-menudesel.add_command(label="Paste")
 
 root.mainloop()
