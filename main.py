@@ -291,7 +291,7 @@ menudesel = tk.Menu(folder_view_widget, tearoff=0)
 
 createnewmenu = tk.Menu(menudesel, tearoff=0)
 
-menudesel.add_command(label="Reload")
+menudesel.add_command(label="Reload", command=lambda: load_folders(current_path))
 menudesel.add_cascade(label="Create New", menu=createnewmenu)
 menudesel.add_command(label="Paste")
 
