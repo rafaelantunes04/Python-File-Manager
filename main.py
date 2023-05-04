@@ -4,7 +4,7 @@ import tkinter as tk
 import tkinter.ttk as ttk
 import datetime
 import subprocess
-import traceback
+import re
 from PIL import Image, ImageTk
 
 root = tk.Tk()
@@ -12,7 +12,8 @@ home_dir = path.expanduser('~')
 current_path = path.join(home_dir, 'Desktop')
 current_location = 0
 paths_map = []
-state = "up"
+paths_map.append(current_path)
+state = 'up'
 
 #Images
 arrow = ImageTk.PhotoImage(Image.open('images/arrow.png'))
@@ -50,49 +51,53 @@ def size_format(size):
 def load_folders(cur_path):
     global current_path, paths_map, current_location, state
     cur_path = cur_path.rstrip()
-    if not cur_path.endswith("\\"):
-        cur_path += "\\"
-    #To Watch
-    if current_path != cur_path and state == "up":
-        try:
-            if paths_map[current_location+1] == cur_path:
-                current_location += 1
-            else:
-                paths_map = paths_map[:current_location]
-                paths_map.append(cur_path)
-                current_location += 1
-        except:
+    if not cur_path.endswith('\\'):
+        cur_path += '\\'
+
+    if current_path != cur_path:
+        if state != 'up' and state != 'down':
+            current_location += 1
             paths_map = paths_map[:current_location]
             paths_map.append(cur_path)
-            current_location += 1
+
     current_path = cur_path
+
     for item in folder_view_widget.get_children():
         folder_view_widget.delete(item)
     for entry in os.scandir(current_path):
         time = datetime.datetime.fromtimestamp(path.getmtime(path.join(current_path, entry.name))).strftime('%d/%m/%Y %H:%M')
-        size = size_format(entry.stat().st_size)
         if path.isdir(path.join(current_path, entry.name)):
             type = 'File Folder'
+            size = ''
             folder_view_widget.insert('','end',values=(entry.name, time, type, size))
         else:
             name, type = entry.name.rsplit('.', 1)
+            size = size_format( path.getsize(entry))
             folder_view_widget.insert('','end',values=(entry.name, time, '.' + type + ' File', size))
-    if current_location == 1:
-        backarrow.config(state="disabled")
+
+    if current_location == 0:
+        backarrow.config(state='disabled')
     else:
-        backarrow.config(state="normal")
-    if len(paths_map) == current_location:
-        frontarrow.config(state="disabled")
+        backarrow.config(state='normal')
+
+    if len(paths_map) == current_location+1:
+        frontarrow.config(state='disabled')
     else:
-        frontarrow.config(state="normal")
+        frontarrow.config(state='normal')
+    
+    if len(current_path) == 3 and current_path[1] == ':' and current_path[2] == '\\' and current_path[0] in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':
+        toparrow.config(state='disabled')
+    else:
+        toparrow.config(state='normal')
+
+    state = ''
     path_text_widget.delete(0, 'end')    
     path_text_widget.insert(0, current_path)
 
 def on_path_changed(event):
     global current_path
     if path.exists(path_text_widget.get()):
-        current_path = path_text_widget.get()
-        load_folders(current_path)
+        load_folders(path_text_widget.get())
     else:
         path_text_widget.delete(0, 'end')    
         path_text_widget.insert(0, current_path)
@@ -101,7 +106,7 @@ def on_folder_doubleclick(event):
     selection = event.widget.selection()
     if selection:
         item = event.widget.item(selection)
-        name = item["values"][0]
+        name = item['values'][0]
         if path.isdir(path.join(current_path, name)):
             load_folders(path.join(current_path, name))
         else:
@@ -119,7 +124,7 @@ def on_quickaccess_click(event):
     if not item_id:
         quick_access_widget.selection_remove(quick_access_widget.selection())
     else:
-        if name == "This PC":
+        if name == 'This PC':
             load_folders(home_dir)
         elif name in directories or parent_folder in directories:
             if path.exists(path.join(home_dir, name)):
@@ -128,8 +133,8 @@ def on_quickaccess_click(event):
                 load_folders(path.join(home_dir, parent_folder, name))
         else:
             try:
-                if path.exists(parent_folder[parent_folder.index('(')+1:parent_folder.index(')')] + "\\" + name):
-                    load_folders(parent_folder[parent_folder.index('(')+1:parent_folder.index(')')] + "\\" + name)
+                if path.exists(parent_folder[parent_folder.index('(')+1:parent_folder.index(')')] + '\\' + name):
+                    load_folders(parent_folder[parent_folder.index('(')+1:parent_folder.index(')')] + '\\' + name)
             except:
                 load_folders(name[name.index('(')+1:name.index(')')])
 
@@ -139,7 +144,7 @@ def search(search_term):
     results = []
     for item in folder_view_widget.get_children():
         item = folder_view_widget.item(item)
-        item = item["values"][0]
+        item = item['values'][0]
         if search_term.lower() in item.lower():
             results.append(item)
     return results
@@ -166,41 +171,61 @@ def on_search(event):
 
 def travel_path(direction):
     global current_location, paths_map, state
-    if direction == "down":
+    if direction == 'down':
         current_location -= 1
-        state = "down"
-        load_folders(paths_map[current_location-1])
-    if direction == "up":
+        state = 'down'
+        load_folders(paths_map[current_location])
+    if direction == 'up':
         current_location += 1
-        state = "up"
-        load_folders(paths_map[current_location-1])
+        state = 'up'
+        load_folders(paths_map[current_location])
+
+def on_enter_backarrow(event):
+    if backarrow['state'] == 'normal':
+        backarrow.config(image=arrow_on)
+
+def on_leave_backarrow(event):
+    backarrow.config(image=arrow)
+
+def on_enter_frontarrow(event):
+    if frontarrow['state'] == 'normal':
+        frontarrow.config(image=fliparrow_on)
+
+def on_leave_frontarrow(event):
+    frontarrow.config(image=fliparrow)
 
 #Top setup
 top_panel = tk.PanedWindow(root)
 top_panel.grid(row=0, column=1, sticky='nsew', pady=10, columnspan=4)
 
     #Left Widgets
-backarrow = tk.Button(root, image=arrow, command=lambda: travel_path("down"))
+backarrow = tk.Button(root, image=arrow, command=lambda: travel_path('down'))
 backarrow.grid(row=0, column=0, sticky='nsw', padx=(5,5), pady=10)
-frontarrow = tk.Button(root, image=fliparrow, command=lambda: travel_path("up"))
+backarrow.bind('<Enter>', on_enter_backarrow)
+backarrow.bind('<Leave>', on_leave_backarrow)
+
+frontarrow = tk.Button(root, image=fliparrow, command=lambda: travel_path('up'))
 frontarrow.grid(row=0, column=0, padx=(25,0), sticky='nsw', pady=10)
+frontarrow.bind('<Enter>', on_enter_frontarrow)
+frontarrow.bind('<Leave>', on_leave_frontarrow)
+
 toparrow = tk.Button(root, image=uparrow)
 toparrow.grid(row=0, column=0, padx=(50,0), sticky='nsw', pady=10)
-themebutton = tk.Button(root, image=reload)
-themebutton.grid(row=0, column=0, padx=(75,5), sticky='nsw', pady=10)
+reloadbutton = tk.Button(root, image=reload)
+reloadbutton.grid(row=0, column=0, padx=(75,5), sticky='nsw', pady=10)
 
         #Left Widgets Settings
 backarrow.configure(relief='flat')
 frontarrow.configure(relief='flat')
 toparrow.configure(relief='flat')
-themebutton.configure(relief='flat')
+reloadbutton.configure(relief='flat')
 
     #Path Text
 path_text = tk.Frame(top_panel)
 
         #Path Text Widget
 path_text_widget = tk.Entry(path_text, width=100)
-path_text_widget.bind("<Return>", on_path_changed)
+path_text_widget.bind('<Return>', on_path_changed)
 path_text_widget.pack(side='left', fill='both', expand=True, padx=5)
 
     #Search Text
@@ -208,7 +233,7 @@ search_text = tk.Frame(top_panel)
 
         #Search Text Widget
 search_text_widget = tk.Entry(search_text)
-search_text_widget.bind("<Return>", on_search)
+search_text_widget.bind('<Return>', on_search)
 search_text_widget.pack(side='right', fill='both',expand=True, padx=5)
 
         #Top Panel Settings
@@ -251,19 +276,19 @@ for dir in directories:
 for i in range(65, 91):
     drive_name = chr(i) + ':'
     if path.exists(drive_name):
-        subfolder = quick_access_widget.insert(this_pc, 'end', text=f"Disk ({drive_name})", open=False)
+        subfolder = quick_access_widget.insert(this_pc, 'end', text=f'Disk ({drive_name})', open=False)
         for entry in os.listdir(path.join(drive_name, '\\')):
             if path.isdir(path.join(path.join(drive_name, '\\'), entry)):
                 quick_access_widget.insert(subfolder, 'end', text=entry, open=False)
 
     #Right Panel
-folder_view = tk.Frame(bottom_panel, relief="flat")
+folder_view = tk.Frame(bottom_panel, relief='flat')
 
         #folder view widget
-folder_view_widget = ttk.Treeview(folder_view, selectmode="browse")
-folder_view_widget.bind("<Double-Button-1>", on_folder_doubleclick)
+folder_view_widget = ttk.Treeview(folder_view, selectmode='browse')
+folder_view_widget.bind('<Double-Button-1>', on_folder_doubleclick)
 folder_view_widget.bind('<Button-1>', on_folderview_click)
-folder_view_widget.bind("<Button-3>", show_menu)
+folder_view_widget.bind('<Button-3>', show_menu)
 folder_view_widget.pack(side='left', fill='both',expand=True)
 
         #folder view scrollbar
@@ -292,22 +317,22 @@ bottom_panel.paneconfigure(folder_view, minsize=50)
 
 #Menu selected
 menusel = tk.Menu(folder_view_widget, tearoff=0)
-menusel.add_command(label="Open")
+menusel.add_command(label='Open')
 menusel.add_separator()
-menusel.add_command(label="Cut")
-menusel.add_command(label="Copy")
+menusel.add_command(label='Cut')
+menusel.add_command(label='Copy')
 menusel.add_separator()
-menusel.add_command(label="Rename")
-menusel.add_command(label="Delete")
+menusel.add_command(label='Rename')
+menusel.add_command(label='Delete')
 
 #Menu deselected/createnew
 menudesel = tk.Menu(folder_view_widget, tearoff=0)
 createnewmenu = tk.Menu(menudesel, tearoff=0)
-menudesel.add_command(label="Reload", command=lambda: load_folders(current_path))
-menudesel.add_cascade(label="Create New", menu=createnewmenu)
-menudesel.add_command(label="Paste")
-createnewmenu.add_command(label="Folder")
-createnewmenu.add_command(label="Text Document")
+menudesel.add_command(label='Reload', command=lambda: load_folders(current_path))
+menudesel.add_cascade(label='Create New', menu=createnewmenu)
+menudesel.add_command(label='Paste')
+createnewmenu.add_command(label='Folder')
+createnewmenu.add_command(label='Text Document')
 
 #Start
 load_folders(current_path)
