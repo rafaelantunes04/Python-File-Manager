@@ -4,7 +4,6 @@ import tkinter as tk
 import tkinter.ttk as ttk
 import datetime
 import subprocess
-import re
 from PIL import Image, ImageTk
 
 root = tk.Tk()
