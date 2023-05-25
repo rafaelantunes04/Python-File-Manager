@@ -20,6 +20,7 @@ arrow_on = ImageTk.PhotoImage(Image.open('images/arrow_on.png'))
 fliparrow = ImageTk.PhotoImage(Image.open('images/arrow.png').rotate(180))
 fliparrow_on = ImageTk.PhotoImage(Image.open('images/arrow_on.png').rotate(180))
 uparrow = ImageTk.PhotoImage(Image.open('images/arrow.png').rotate(-90))
+uparrow_on = ImageTk.PhotoImage(Image.open('images/arrow_on.png').rotate(-90))
 reload = ImageTk.PhotoImage(Image.open('images/reload.png'))
 
 #Window Settings
@@ -60,9 +61,9 @@ def load_folders(cur_path):
             paths_map.append(cur_path)
 
     current_path = cur_path
-
     for item in folder_view_widget.get_children():
         folder_view_widget.delete(item)
+
     for entry in os.scandir(current_path):
         time = datetime.datetime.fromtimestamp(path.getmtime(path.join(current_path, entry.name))).strftime('%d/%m/%Y %H:%M')
         if path.isdir(path.join(current_path, entry.name)):
@@ -193,6 +194,22 @@ def on_enter_frontarrow(event):
 def on_leave_frontarrow(event):
     frontarrow.config(image=fliparrow)
 
+def on_enter_toparrow(event):
+    if toparrow['state'] == 'normal':
+        toparrow.config(image=uparrow_on)
+
+def on_leave_toparrow(event):
+        toparrow.config(image=uparrow)
+        
+def on_folder_back():
+    global current_path
+    load_folders(path.dirname(path.dirname(current_path)))
+
+def reload_table():
+    for item in folder_view_widget.get_children(): 
+        folder_view_widget.delete(item)
+    load_folders(current_path)
+
 #Top setup
 top_panel = tk.PanedWindow(root)
 top_panel.grid(row=0, column=1, sticky='nsew', pady=10, columnspan=4)
@@ -208,9 +225,12 @@ frontarrow.grid(row=0, column=0, padx=(25,0), sticky='nsw', pady=10)
 frontarrow.bind('<Enter>', on_enter_frontarrow)
 frontarrow.bind('<Leave>', on_leave_frontarrow)
 
-toparrow = tk.Button(root, image=uparrow)
+toparrow = tk.Button(root, image=uparrow, command=on_folder_back)
 toparrow.grid(row=0, column=0, padx=(50,0), sticky='nsw', pady=10)
-reloadbutton = tk.Button(root, image=reload)
+toparrow.bind('<Enter>', on_enter_toparrow)
+toparrow.bind('<Leave>', on_leave_toparrow)
+
+reloadbutton = tk.Button(root, image=reload, command=reload_table)
 reloadbutton.grid(row=0, column=0, padx=(75,5), sticky='nsw', pady=10)
 
         #Left Widgets Settings
@@ -317,6 +337,7 @@ bottom_panel.paneconfigure(folder_view, minsize=50)
 #Menu selected
 menusel = tk.Menu(folder_view_widget, tearoff=0)
 menusel.add_command(label='Open')
+menusel.add_command(label='Set Favorite')
 menusel.add_separator()
 menusel.add_command(label='Cut')
 menusel.add_command(label='Copy')
