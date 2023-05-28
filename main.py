@@ -2,8 +2,11 @@ import os
 import os.path as path
 import tkinter as tk
 import tkinter.ttk as ttk
+import tkinter.simpledialog as simpledialog
+import tkinter.messagebox as messagebox
 import datetime
 import subprocess
+import shutil
 from PIL import Image, ImageTk
 
 root = tk.Tk()
@@ -205,10 +208,32 @@ def on_folder_back():
     global current_path
     load_folders(path.dirname(path.dirname(current_path)))
 
-def reload_table():
-    for item in folder_view_widget.get_children(): 
-        folder_view_widget.delete(item)
+def create_folder():
+    global current_path
+    folder_name = simpledialog.askstring("Folder name", "Name your folder")
+    os.mkdir(path.join(current_path, folder_name))
     load_folders(current_path)
+
+def create_txt():
+    global current_path
+    folder_name = simpledialog.askstring("Txt File", "Name your file")
+    with open(path.join(current_path, str(folder_name) + ".txt"), "w") as file:
+        file.write("")
+    load_folders(current_path)
+
+def delete_file():
+    global current_path
+    selection = folder_view_widget.selection()
+    item = folder_view_widget.item(selection)
+    name = item['values'][0]
+    confirmed = messagebox.askyesno("Confirmation", "Are you sure you want to delete " + name)
+    if confirmed:
+        if path.isdir(path.join(current_path, name)):
+            shutil.rmtree(path.join(current_path, name))
+            load_folders(current_path)
+        else:
+            os.remove(path.join(current_path, name))
+            load_folders(current_path)
 
 #Top setup
 top_panel = tk.PanedWindow(root)
@@ -230,7 +255,7 @@ toparrow.grid(row=0, column=0, padx=(50,0), sticky='nsw', pady=10)
 toparrow.bind('<Enter>', on_enter_toparrow)
 toparrow.bind('<Leave>', on_leave_toparrow)
 
-reloadbutton = tk.Button(root, image=reload, command=reload_table)
+reloadbutton = tk.Button(root, image=reload, command=lambda: load_folders(current_path))
 reloadbutton.grid(row=0, column=0, padx=(75,5), sticky='nsw', pady=10)
 
         #Left Widgets Settings
@@ -343,7 +368,7 @@ menusel.add_command(label='Cut')
 menusel.add_command(label='Copy')
 menusel.add_separator()
 menusel.add_command(label='Rename')
-menusel.add_command(label='Delete')
+menusel.add_command(label='Delete', command=delete_file)
 
 #Menu deselected/createnew
 menudesel = tk.Menu(folder_view_widget, tearoff=0)
@@ -351,8 +376,8 @@ createnewmenu = tk.Menu(menudesel, tearoff=0)
 menudesel.add_command(label='Reload', command=lambda: load_folders(current_path))
 menudesel.add_cascade(label='Create New', menu=createnewmenu)
 menudesel.add_command(label='Paste')
-createnewmenu.add_command(label='Folder')
-createnewmenu.add_command(label='Text Document')
+createnewmenu.add_command(label='Folder', command=create_folder)
+createnewmenu.add_command(label='Text Document', command=create_txt)
 
 #Start
 load_folders(current_path)
