@@ -361,7 +361,7 @@ bottom_panel.paneconfigure(folder_view, minsize=50)
 
 #Menu selected
 menusel = tk.Menu(folder_view_widget, tearoff=0)
-menusel.add_command(label='Open')
+menusel.add_command(label='Open', command=on_folder_doubleclick)
 menusel.add_command(label='Set Favorite')
 menusel.add_separator()
 menusel.add_command(label='Cut')
