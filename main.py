@@ -11,11 +11,13 @@ from PIL import Image, ImageTk
 
 root = tk.Tk()
 home_dir = path.expanduser('~')
+source_file = ''
 current_path = path.join(home_dir, 'Desktop')
 current_location = 0
 paths_map = []
 paths_map.append(current_path)
 state = 'up'
+cutorcopy = ''
 
 #Images
 arrow = ImageTk.PhotoImage(Image.open('images/arrow.png'))
@@ -235,6 +237,51 @@ def delete_file():
             os.remove(path.join(current_path, name))
             load_folders(current_path)
 
+def copy(type):
+    global current_path, source_file, cutorcopy
+    selection = folder_view_widget.selection()
+    item = folder_view_widget.item(selection)
+    name = item['values'][0]
+    source_file = path.join(current_path, name)
+    if type == 'cut':
+        cutorcopy = 'cut'
+    if type == 'copy':
+        cutorcopy = 'copy'
+
+def paste():
+    global cutorcopy, source_file, current_path
+    if path.exists(source_file):
+        if cutorcopy == 'cut':
+            shutil.move(source_file, current_path)
+        if cutorcopy == 'copy':
+            shutil.copy(source_file, current_path)
+    else:
+        message_window = tk.Toplevel()
+        message_window.title('Error')
+        message_label = tk.Label(message_window, text='File does not exist')
+        message_label.pack()
+        message_window.after(3000, lambda: message_window.destroy())
+    load_folders(current_path)
+
+def rename():
+    selection = folder_view_widget.selection()
+    item = folder_view_widget.item(selection)
+    name = item['values'][0]
+    new_name = simpledialog.askstring("Rename"+ name, "Rename your file")
+    try:
+        os.rename(name, new_name)
+        message_window = tk.Toplevel()
+        message_window.title('Success')
+        message_label = tk.Label(message_window, text=f'{name} renamed to {new_name} successfully.')
+        message_label.pack()
+        message_window.after(3000, lambda: message_window.destroy())
+    except OSError as e:
+        message_window = tk.Toplevel()
+        message_window.title('Erro')
+        message_label = tk.Label(message_window, text=f'Error renaming file: {e}')
+        message_label.pack()
+
+
 #Top setup
 top_panel = tk.PanedWindow(root)
 top_panel.grid(row=0, column=1, sticky='nsew', pady=10, columnspan=4)
@@ -364,10 +411,11 @@ menusel = tk.Menu(folder_view_widget, tearoff=0)
 menusel.add_command(label='Open')
 menusel.add_command(label='Set Favorite')
 menusel.add_separator()
-menusel.add_command(label='Cut')
-menusel.add_command(label='Copy')
+menusel.add_command(label='Paste', command=paste)
+menusel.add_command(label='Cut', command=lambda: copy('cut'))
+menusel.add_command(label='Copy', command=lambda: copy('copy'))
 menusel.add_separator()
-menusel.add_command(label='Rename')
+menusel.add_command(label='Rename', command=rename)
 menusel.add_command(label='Delete', command=delete_file)
 
 #Menu deselected/createnew
@@ -375,7 +423,7 @@ menudesel = tk.Menu(folder_view_widget, tearoff=0)
 createnewmenu = tk.Menu(menudesel, tearoff=0)
 menudesel.add_command(label='Reload', command=lambda: load_folders(current_path))
 menudesel.add_cascade(label='Create New', menu=createnewmenu)
-menudesel.add_command(label='Paste')
+menudesel.add_command(label='Paste', command=paste)
 createnewmenu.add_command(label='Folder', command=create_folder)
 createnewmenu.add_command(label='Text Document', command=create_txt)
 
