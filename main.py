@@ -15,9 +15,11 @@ source_file = ''
 current_path = path.join(home_dir, 'Desktop')
 current_location = 0
 paths_map = []
+directories = ['Desktop', 'Documents', 'Pictures', 'Music', '3D Objects', 'Downloads', 'Videos']
 paths_map.append(current_path)
 state = 'up'
 cutorcopy = ''
+firstload = 0
 
 #Images
 arrow = ImageTk.PhotoImage(Image.open('images/arrow.png'))
@@ -44,6 +46,16 @@ def show_menu(event):
         menusel.post(event.x_root, event.y_root)
     else:
         menudesel.post(event.x_root, event.y_root)
+
+def openfile():
+    selection = folder_view_widget.selection()
+    if selection:
+        item = folder_view_widget.item(selection)
+        name = item['values'][0]
+        if path.isdir(path.join(current_path, name)):
+            load_folders(path.join(current_path, name))
+        else:
+            subprocess.Popen([path.join(current_path, name)], shell=True)
 
 def size_format(size):
     units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
@@ -98,6 +110,7 @@ def load_folders(cur_path):
     state = ''
     path_text_widget.delete(0, 'end')    
     path_text_widget.insert(0, current_path)
+    load_quick_access()
 
 def on_path_changed(event):
     global current_path
@@ -108,21 +121,14 @@ def on_path_changed(event):
         path_text_widget.insert(0, current_path)
 
 def on_folder_doubleclick(event):
-    selection = event.widget.selection()
-    if selection:
-        item = event.widget.item(selection)
-        name = item['values'][0]
-        if path.isdir(path.join(current_path, name)):
-            load_folders(path.join(current_path, name))
-        else:
-            subprocess.Popen([path.join(current_path, name)], shell=True)
+    openfile()
 
 def on_folderview_click(event):
     item = folder_view_widget.identify('item', event.x, event.y)
     if not item:
         folder_view_widget.selection_remove(folder_view_widget.selection())
 
-def on_quickaccess_click(event):
+def on_quickaccess_doubleclick(event):
     item_id = event.widget.identify_row(event.y)
     name = event.widget.item(event.widget.identify_row(event.y))['text']
     parent_folder = event.widget.item(event.widget.parent(item_id))['text']
@@ -213,7 +219,11 @@ def on_folder_back():
 def create_folder():
     global current_path
     folder_name = simpledialog.askstring("Folder name", "Name your folder")
-    os.mkdir(path.join(current_path, folder_name))
+    try:
+        os.mkdir(path.join(current_path, folder_name))
+    except Exception as e:
+        messagebox.askyesno("Error", e)
+
     load_folders(current_path)
 
 def create_txt():
@@ -281,6 +291,38 @@ def rename():
         message_label = tk.Label(message_window, text=f'Error renaming file: {e}')
         message_label.pack()
 
+def delete_all_items(tree):
+    children = tree.get_children()
+    while children:
+        for child in children:
+            tree.delete(child)
+        children = tree.get_children()
+
+def load_quick_access():
+    global firstload
+    if firstload == 1:
+        delete_all_items(quick_access_widget)
+    
+    this_pc = quick_access_widget.insert('', 'end', text='This PC', open=True)
+    
+    #this pc folder insertion
+    for dir in directories:
+        if path.exists(path.join(home_dir, dir)):
+            subfolder = quick_access_widget.insert(this_pc, 'end', text=dir, open=False)
+            for entry in os.listdir(path.join(home_dir, dir)):
+                if path.isdir(path.join(home_dir, dir, entry)):
+                    quick_access_widget.insert(subfolder, 'end', text=entry, open=False)
+
+    #disk insertion
+    for i in range(65, 91):
+        drive_name = chr(i) + ':'
+        if path.exists(drive_name):
+            subfolder = quick_access_widget.insert(this_pc, 'end', text=f'Disk ({drive_name})', open=False)
+            for entry in os.listdir(path.join(drive_name, '\\')):
+                if path.isdir(path.join(path.join(drive_name, '\\'), entry)):
+                    quick_access_widget.insert(subfolder, 'end', text=entry, open=False)
+
+    firstload = 1
 
 #Top setup
 top_panel = tk.PanedWindow(root)
@@ -343,34 +385,13 @@ quick_access = tk.Frame(bottom_panel)
         #quick access widget
 quick_access_widget = ttk.Treeview(quick_access)
 quick_access_widget.heading('#0', text='Quick access', anchor='c')
-quick_access_widget.bind('<Button-1>', on_quickaccess_click)
+quick_access_widget.bind('<Double-Button-1>', on_quickaccess_doubleclick)
 quick_access_widget.pack(side='left', fill='both',expand=True)
 
         #quick access scrollbar
 quick_access_scrollbar = ttk.Scrollbar(quick_access_widget, orient='vertical', command=quick_access_widget.yview)
 quick_access_scrollbar.pack(side='right', fill='y')
 quick_access_widget.configure(yscrollcommand=quick_access_scrollbar.set)
-
-            #quick access folder insertion
-this_pc = quick_access_widget.insert('', 'end', text='This PC', open=True)
-directories = ['Desktop', 'Documents', 'Pictures', 'Music', '3D Objects', 'Downloads', 'Videos']
-
-                #Default system folder insertion
-for dir in directories:
-    if path.exists(path.join(home_dir, dir)):
-        subfolder = quick_access_widget.insert(this_pc, 'end', text=dir, open=False)
-        for entry in os.listdir(path.join(home_dir, dir)):
-            if path.isdir(path.join(home_dir, dir, entry)):
-                quick_access_widget.insert(subfolder, 'end', text=entry, open=False)
-
-                #Disk insertion
-for i in range(65, 91):
-    drive_name = chr(i) + ':'
-    if path.exists(drive_name):
-        subfolder = quick_access_widget.insert(this_pc, 'end', text=f'Disk ({drive_name})', open=False)
-        for entry in os.listdir(path.join(drive_name, '\\')):
-            if path.isdir(path.join(path.join(drive_name, '\\'), entry)):
-                quick_access_widget.insert(subfolder, 'end', text=entry, open=False)
 
     #Right Panel
 folder_view = tk.Frame(bottom_panel, relief='flat')
@@ -408,7 +429,7 @@ bottom_panel.paneconfigure(folder_view, minsize=50)
 
 #Menu selected
 menusel = tk.Menu(folder_view_widget, tearoff=0)
-menusel.add_command(label='Open')
+menusel.add_command(label='Open', command=openfile)
 menusel.add_command(label='Set Favorite')
 menusel.add_separator()
 menusel.add_command(label='Paste', command=paste)
