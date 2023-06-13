@@ -7,9 +7,12 @@ import tkinter.messagebox as messagebox
 import datetime
 import subprocess
 import shutil
+import configparser
+import uuid
 from PIL import Image, ImageTk
 
 root = tk.Tk()
+config = configparser.ConfigParser()
 home_dir = path.expanduser('~')
 source_file = ''
 current_path = path.join(home_dir, 'Desktop')
@@ -20,6 +23,7 @@ paths_map.append(current_path)
 state = 'up'
 cutorcopy = ''
 firstload = 0
+favoriteslist = {}
 
 #Images
 arrow = ImageTk.PhotoImage(Image.open('images/arrow.png'))
@@ -46,6 +50,12 @@ def show_menu(event):
         menusel.post(event.x_root, event.y_root)
     else:
         menudesel.post(event.x_root, event.y_root)
+
+def show_quickaccessmenu(event):
+    item_id = event.widget.identify_row(event.y)
+    parent_folder = event.widget.item(event.widget.parent(item_id))['text']
+    if parent_folder == 'Favorites':
+        menuquickaccess.post(event.x_root, event.y_root)
 
 def openfile():
     selection = folder_view_widget.selection()
@@ -129,9 +139,11 @@ def on_folderview_click(event):
         folder_view_widget.selection_remove(folder_view_widget.selection())
 
 def on_quickaccess_doubleclick(event):
+    print(event)
     item_id = event.widget.identify_row(event.y)
     name = event.widget.item(event.widget.identify_row(event.y))['text']
     parent_folder = event.widget.item(event.widget.parent(item_id))['text']
+
     if not item_id:
         quick_access_widget.selection_remove(quick_access_widget.selection())
     else:
@@ -142,6 +154,9 @@ def on_quickaccess_doubleclick(event):
                 load_folders(path.join(home_dir, name))
             else:
                 load_folders(path.join(home_dir, parent_folder, name))
+        elif parent_folder == 'Favorites':
+            id = event.widget.item(event.widget.identify_row(event.y))['tags'][0]
+            load_folders(config.get('favorites', id))
         else:
             try:
                 if path.exists(parent_folder[parent_folder.index('(')+1:parent_folder.index(')')] + '\\' + name):
@@ -298,13 +313,36 @@ def delete_all_items(tree):
             tree.delete(child)
         children = tree.get_children()
 
+def add_to_favorites():
+    global current_path
+    path_exists = False
+    selection = folder_view_widget.selection()
+    item = folder_view_widget.item(selection)
+    name = item['values'][0]
+
+    config.read('config.ini')
+    if path.isdir(path.join(current_path, name)):
+        for i in config.options('favorites'):
+            if config.get('favorites', i) == path.join(current_path, name):
+                path_exists = True
+                break
+
+        if not path_exists:
+            config.set('favorites',  str(uuid.uuid4()), path.join(current_path, name))
+
+            with open('config.ini', 'w') as configfile:
+                config.write(configfile)
+
+            load_quick_access()
+
 def load_quick_access():
-    global firstload
+    global firstload, favorites
     if firstload == 1:
         delete_all_items(quick_access_widget)
     
     this_pc = quick_access_widget.insert('', 'end', text='This PC', open=True)
-    
+    favorites = quick_access_widget.insert('', 'end', text='Favorites', open=True)
+
     #this pc folder insertion
     for dir in directories:
         if path.exists(path.join(home_dir, dir)):
@@ -322,7 +360,34 @@ def load_quick_access():
                 if path.isdir(path.join(path.join(drive_name, '\\'), entry)):
                     quick_access_widget.insert(subfolder, 'end', text=entry, open=False)
 
+    load_favorites()
+    
     firstload = 1
+
+def load_favorites():
+    global favoriteslist, favorites
+    favoriteslist.clear()
+    config.read('config.ini')
+    for i in config.options('favorites'):
+        if path.exists(config.get('favorites', i)):
+            favoriteslist[config.get('favorites', i)] = i
+            quick_access_widget.insert(favorites, 'end', text='✰ ' + path.basename(config.get('favorites', i)), tags=i, open=False)
+        else:
+            config.remove_option('favorites', config.get('favorites', i))
+
+def remove_favorite():
+    global current_path
+    selection = quick_access_widget.selection()
+    item = quick_access_widget.item(selection)
+    id = item['tags'][0]
+    config.read('config.ini')
+
+    config.remove_option('favorites', id)
+
+    with open('config.ini', 'w') as configfile:
+        config.write(configfile)
+
+    load_quick_access()
 
 #Top setup
 top_panel = tk.PanedWindow(root)
@@ -386,6 +451,7 @@ quick_access = tk.Frame(bottom_panel)
 quick_access_widget = ttk.Treeview(quick_access)
 quick_access_widget.heading('#0', text='Quick access', anchor='c')
 quick_access_widget.bind('<Double-Button-1>', on_quickaccess_doubleclick)
+quick_access_widget.bind('<Button-3>', show_quickaccessmenu)
 quick_access_widget.pack(side='left', fill='both',expand=True)
 
         #quick access scrollbar
@@ -430,7 +496,7 @@ bottom_panel.paneconfigure(folder_view, minsize=50)
 #Menu selected
 menusel = tk.Menu(folder_view_widget, tearoff=0)
 menusel.add_command(label='Open', command=openfile)
-menusel.add_command(label='Set Favorite')
+menusel.add_command(label='Set Favorite', command=add_to_favorites)
 menusel.add_separator()
 menusel.add_command(label='Paste', command=paste)
 menusel.add_command(label='Cut', command=lambda: copy('cut'))
@@ -447,6 +513,10 @@ menudesel.add_cascade(label='Create New', menu=createnewmenu)
 menudesel.add_command(label='Paste', command=paste)
 createnewmenu.add_command(label='Folder', command=create_folder)
 createnewmenu.add_command(label='Text Document', command=create_txt)
+
+#Menu quick access
+menuquickaccess = tk.Menu(quick_access_widget, tearoff=0)
+menuquickaccess.add_command(label='Remove Favorite', command=remove_favorite)
 
 #Start
 load_folders(current_path)
