@@ -57,11 +57,10 @@ def show_quickaccessmenu(event):
     if parent_folder == 'Favorites':
         menuquickaccess.post(event.x_root, event.y_root)
 
-def openfile():
-    selection = folder_view_widget.selection()
+def openfile(event):
+    selection = event.widget.selection()
     if selection:
-        item = folder_view_widget.item(selection)
-        name = item['values'][0]
+        name = event.widget.item(selection)['values'][0]
         if path.isdir(path.join(current_path, name)):
             load_folders(path.join(current_path, name))
         else:
@@ -78,6 +77,7 @@ def size_format(size):
 def load_folders(cur_path):
     global current_path, paths_map, current_location, state
     cur_path = cur_path.rstrip()
+
     if not cur_path.endswith('\\'):
         cur_path += '\\'
 
@@ -124,28 +124,27 @@ def load_folders(cur_path):
 
 def on_path_changed(event):
     global current_path
-    if path.exists(path_text_widget.get()):
-        load_folders(path_text_widget.get())
+    if path.exists(event.widget.get()):
+        load_folders(event.widget.get())
     else:
-        path_text_widget.delete(0, 'end')    
-        path_text_widget.insert(0, current_path)
+        event.widget.delete(0, 'end')    
+        event.widget.insert(0, current_path)
 
 def on_folder_doubleclick(event):
-    openfile()
+    openfile(event)
 
 def on_folderview_click(event):
-    item = folder_view_widget.identify('item', event.x, event.y)
+    item = event.widget.identify('item', event.x, event.y)
     if not item:
-        folder_view_widget.selection_remove(folder_view_widget.selection())
+        event.widget.selection_remove(event.widget.selection())
 
 def on_quickaccess_doubleclick(event):
-    print(event)
     item_id = event.widget.identify_row(event.y)
     name = event.widget.item(event.widget.identify_row(event.y))['text']
     parent_folder = event.widget.item(event.widget.parent(item_id))['text']
 
     if not item_id:
-        quick_access_widget.selection_remove(quick_access_widget.selection())
+        event.widget.selection_remove(event.widget.selection())
     else:
         if name == 'This PC':
             load_folders(home_dir)
@@ -177,10 +176,10 @@ def search(search_term):
 
 def on_search(event):
     global current_path
-    results = search(search_text_widget.get()) 
+    results = search(event.widget.get()) 
     for item in folder_view_widget.get_children():
         folder_view_widget.delete(item)
-    if search_text_widget.get() == '':
+    if event.widget.get() == '':
         load_folders(current_path)
     else:
         for each in results:
@@ -251,9 +250,10 @@ def create_txt():
 def delete_file():
     global current_path
     selection = folder_view_widget.selection()
-    item = folder_view_widget.item(selection)
-    name = item['values'][0]
+    name = folder_view_widget.item(selection)['values'][0]
+
     confirmed = messagebox.askyesno("Confirmation", "Are you sure you want to delete " + name)
+
     if confirmed:
         if path.isdir(path.join(current_path, name)):
             shutil.rmtree(path.join(current_path, name))
@@ -265,8 +265,8 @@ def delete_file():
 def copy(type):
     global current_path, source_file, cutorcopy
     selection = folder_view_widget.selection()
-    item = folder_view_widget.item(selection)
-    name = item['values'][0]
+    name = folder_view_widget.item(selection)['values'][0]
+
     source_file = path.join(current_path, name)
     if type == 'cut':
         cutorcopy = 'cut'
@@ -290,9 +290,10 @@ def paste():
 
 def rename():
     selection = folder_view_widget.selection()
-    item = folder_view_widget.item(selection)
-    name = item['values'][0]
+    name = folder_view_widget.item(selection)['values'][0]
+
     new_name = simpledialog.askstring("Rename"+ name, "Rename your file")
+
     try:
         os.rename(name, new_name)
         message_window = tk.Toplevel()
@@ -313,30 +314,9 @@ def delete_all_items(tree):
             tree.delete(child)
         children = tree.get_children()
 
-def add_to_favorites():
-    global current_path
-    path_exists = False
-    selection = folder_view_widget.selection()
-    item = folder_view_widget.item(selection)
-    name = item['values'][0]
-
-    config.read('config.ini')
-    if path.isdir(path.join(current_path, name)):
-        for i in config.options('favorites'):
-            if config.get('favorites', i) == path.join(current_path, name):
-                path_exists = True
-                break
-
-        if not path_exists:
-            config.set('favorites',  str(uuid.uuid4()), path.join(current_path, name))
-
-            with open('config.ini', 'w') as configfile:
-                config.write(configfile)
-
-            load_quick_access()
-
 def load_quick_access():
     global firstload, favorites
+
     if firstload == 1:
         delete_all_items(quick_access_widget)
     
@@ -364,6 +344,28 @@ def load_quick_access():
     
     firstload = 1
 
+def add_to_favorites():
+    global current_path
+    path_exists = False
+    selection = folder_view_widget.selection()
+    item = folder_view_widget.item(selection)
+    name = item['values'][0]
+
+    config.read('config.ini')
+    if path.isdir(path.join(current_path, name)):
+        for i in config.options('favorites'):
+            if config.get('favorites', i) == path.join(current_path, name):
+                path_exists = True
+                break
+
+        if not path_exists:
+            config.set('favorites',  str(uuid.uuid4()), path.join(current_path, name))
+
+            with open('config.ini', 'w') as configfile:
+                config.write(configfile)
+
+            load_quick_access()
+
 def load_favorites():
     global favoriteslist, favorites
     favoriteslist.clear()
@@ -389,93 +391,89 @@ def remove_favorite():
 
     load_quick_access()
 
-#Top setup
+#Top panel setup
 top_panel = tk.PanedWindow(root)
 top_panel.grid(row=0, column=1, sticky='nsew', pady=10, columnspan=4)
 
-    #Left Widgets
+    #Back arrow
 backarrow = tk.Button(root, image=arrow, command=lambda: travel_path('down'))
 backarrow.grid(row=0, column=0, sticky='nsw', padx=(5,5), pady=10)
 backarrow.bind('<Enter>', on_enter_backarrow)
 backarrow.bind('<Leave>', on_leave_backarrow)
 
+    #Front arrow
 frontarrow = tk.Button(root, image=fliparrow, command=lambda: travel_path('up'))
 frontarrow.grid(row=0, column=0, padx=(25,0), sticky='nsw', pady=10)
 frontarrow.bind('<Enter>', on_enter_frontarrow)
 frontarrow.bind('<Leave>', on_leave_frontarrow)
 
+    #Top arrow
 toparrow = tk.Button(root, image=uparrow, command=on_folder_back)
 toparrow.grid(row=0, column=0, padx=(50,0), sticky='nsw', pady=10)
 toparrow.bind('<Enter>', on_enter_toparrow)
 toparrow.bind('<Leave>', on_leave_toparrow)
 
+    #Reload button
 reloadbutton = tk.Button(root, image=reload, command=lambda: load_folders(current_path))
 reloadbutton.grid(row=0, column=0, padx=(75,5), sticky='nsw', pady=10)
 
-        #Left Widgets Settings
+    #Left Widgets Settings
 backarrow.configure(relief='flat')
 frontarrow.configure(relief='flat')
 toparrow.configure(relief='flat')
 reloadbutton.configure(relief='flat')
 
-    #Path Text
+    #Path text
 path_text = tk.Frame(top_panel)
-
-        #Path Text Widget
 path_text_widget = tk.Entry(path_text, width=100)
 path_text_widget.bind('<Return>', on_path_changed)
 path_text_widget.pack(side='left', fill='both', expand=True, padx=5)
 
     #Search Text
 search_text = tk.Frame(top_panel)
-
-        #Search Text Widget
 search_text_widget = tk.Entry(search_text)
 search_text_widget.bind('<Return>', on_search)
 search_text_widget.pack(side='right', fill='both',expand=True, padx=5)
 
-        #Top Panel Settings
+    #Top Panel Settings
 top_panel.add(path_text)
 top_panel.add(search_text)
 top_panel.paneconfigure(path_text, minsize=200)
 top_panel.paneconfigure(search_text, minsize=200)
 
-#Bottom setup
+#Bottom panel setup
 bottom_panel = tk.PanedWindow(root)
 bottom_panel.grid(row=1, column=0, columnspan=5, sticky='nsew')
 
-    #Left panel
+    #Quick access widget
 quick_access = tk.Frame(bottom_panel)
-
-        #quick access widget
 quick_access_widget = ttk.Treeview(quick_access)
 quick_access_widget.heading('#0', text='Quick access', anchor='c')
 quick_access_widget.bind('<Double-Button-1>', on_quickaccess_doubleclick)
 quick_access_widget.bind('<Button-3>', show_quickaccessmenu)
 quick_access_widget.pack(side='left', fill='both',expand=True)
 
-        #quick access scrollbar
+        #Quick access scrollbar
 quick_access_scrollbar = ttk.Scrollbar(quick_access_widget, orient='vertical', command=quick_access_widget.yview)
 quick_access_scrollbar.pack(side='right', fill='y')
 quick_access_widget.configure(yscrollcommand=quick_access_scrollbar.set)
 
-    #Right Panel
-folder_view = tk.Frame(bottom_panel, relief='flat')
 
-        #folder view widget
+    #Folder view widget
+folder_view = tk.Frame(bottom_panel, relief='flat')
 folder_view_widget = ttk.Treeview(folder_view, selectmode='browse')
 folder_view_widget.bind('<Double-Button-1>', on_folder_doubleclick)
 folder_view_widget.bind('<Button-1>', on_folderview_click)
 folder_view_widget.bind('<Button-3>', show_menu)
 folder_view_widget.pack(side='left', fill='both',expand=True)
 
-        #folder view scrollbar
+        #Folder view scrollbar
 folder_view_scrollbar = ttk.Scrollbar(folder_view_widget, orient='vertical', command=folder_view_widget.yview)
 folder_view_scrollbar.pack(side='right', fill='y')
 folder_view_widget.configure(yscrollcommand=folder_view_scrollbar.set)
 
-        #folder view folders setup
 
+        #Folder view settings
 folder_view_widget['columns'] = ('1', '2', '3', '4')
 folder_view_widget['show'] = 'headings'
 folder_view_widget.column('1', anchor='w', stretch=0, minwidth=50)
@@ -487,7 +485,7 @@ folder_view_widget.heading('2', text='Date of Modification', anchor='w')
 folder_view_widget.heading('3', text='Type', anchor='w')
 folder_view_widget.heading('4', text='Size', anchor='w')
 
-    #Bottom Panel Settings Setup
+    #Bottom panel settings 
 bottom_panel.add(quick_access, width=200)
 bottom_panel.add(folder_view)
 bottom_panel.paneconfigure(quick_access, minsize=50)
